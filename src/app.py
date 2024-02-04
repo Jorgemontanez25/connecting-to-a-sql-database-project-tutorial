@@ -3,22 +3,31 @@ from sqlalchemy import create_engine
 import pandas as pd
 from dotenv import load_dotenv
 
-# load the .env file variables
+# Load the .env file variables
 load_dotenv()
 
-# 1) Connect to the database here using the SQLAlchemy's create_engine function
-required_vars = ['DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_NAME']
-if not all(os.getenv(var) for var in required_vars):
-    raise ValueError("Please set all required environment variables.")
-# Construct the connection string
-connection_string = f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
-# Create the engine with autocommit set to True
-engine = create_engine(connection_string).execution_options(autocommit=True)
 # Connect to the database
-connection = engine.connect()
+def connect_to_database():
+    # Construct the connection string
+    connection_string = f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+    # Create the engine with autocommit set to True
+    engine = create_engine(connection_string).execution_options(autocommit=True)
+    # Connect to the database
+    connection = engine.connect()
+    return engine, connection
 
-# 2) Execute the SQL sentences to create your tables using the SQLAlchemy's execute function
-sql_statement = """
+# Execute SQL statements
+def execute_sql_statements(engine, sql_statements):
+    for sql_statement in sql_statements:
+        engine.execute(sql_statement)
+
+# Fetch data using Pandas
+def fetch_data(engine, sql_query):
+    data_df = pd.read_sql(sql_query, engine)
+    return data_df
+
+# SQL statements for creating tables
+create_tables_sql = """
 -- Create Publishers Table
 CREATE TABLE publishers (
     publisher_id INT NOT NULL,
@@ -58,75 +67,28 @@ CREATE TABLE book_authors (
 );
 """
 
-# Execute the SQL statement
-engine.execute(sql_statement)
-
-# 3) Execute the SQL sentences to insert your data using the SQLAlchemy's execute function
-sql_statement = """
--- Insert Data into Publishers Table
-INSERT INTO publishers (publisher_id, name) VALUES 
-    (1, 'O Reilly Media'),
-    (2, 'A Book Apart'),
-    (3, 'A K PETERS'),
-    (4, 'Academic Press'),
-    (5, 'Addison Wesley'),
-    (6, 'Albert&Sweigart'),
-    (7, 'Alfred A. Knopf');
-
--- Insert Data into Authors Table
-INSERT INTO authors (author_id, first_name, middle_name, last_name) VALUES 
-    (1, 'Merritt', null, 'Eric'),
-    (2, 'Linda', null, 'Mui'),
-    (3, 'Alecos', null, 'Papadatos'),
-    (4, 'Anthony', null, 'Molinaro'),
-    (5, 'David', null, 'Cronin'),
-    (6, 'Richard', null, 'Blum'),
-    (7, 'Yuval', 'Noah', 'Harari'),
-    (8, 'Paul', null, 'Albitz');
-
--- Insert Data into Books Table
-INSERT INTO books (book_id, title, total_pages, rating, isbn, published_date, publisher_id) VALUES 
-    (1, 'Lean Software Development: An Agile Toolkit', 240, 4.17, '9780320000000', '2003-05-18', 5),
-    (2, 'Facing the Intelligence Explosion', 91, 3.87, null, '2013-02-01', 7),
-    (3, 'Scala in Action', 419, 3.74, '9781940000000', '2013-04-10', 1),
-    (4, 'Patterns of Software: Tales from the Software Community', 256, 3.84, '9780200000000', '1996-08-15', 1),
-    (5, 'Anatomy Of LISP', 446, 4.43, '9780070000000', '1978-01-01', 3),
-    (6, 'Computing machinery and intelligence', 24, 4.17, null, '2009-03-22', 4),
-    (7, 'XML: Visual QuickStart Guide', 269, 3.66, '9780320000000', '2009-01-01', 5),
-    (8, 'SQL Cookbook', 595, 3.95, '9780600000000', '2005-12-01', 7),
-    (9, 'The Apollo Guidance Computer: Architecture And Operation (Springer Praxis Books / Space Exploration)', 439, 4.29, '9781440000000', '2010-07-01', 6),
-    (10, 'Minds and Computers: An Introduction to the Philosophy of Artificial Intelligence', 222, 3.54, '9780750000000', '2007-02-13', 7);
-
--- Insert Data into Book Authors Table
-INSERT INTO book_authors (book_id, author_id) VALUES 
-    (1, 1),
-    (2, 8),
-    (3, 7),
-    (4, 6),
-    (5, 5),
-    (6, 4),
-    (7, 3),
-    (8, 2),
-    (9, 4),
-    (10, 1);
+# SQL statements for inserting data
+insert_data_sql = """
+-- Your insert statements here
 """
 
-# Execute the SQL statement
-engine.execute(sql_statement)
+# SQL query for fetching data
+fetch_data_query = """
+SELECT * FROM publishers;
+"""
 
+# Connect to the database
+engine, connection = connect_to_database()
 
-# 4) Use pandas to print one of the tables as dataframes using read_sql function
-def fetch_publishers_data(engine):
-    # Define the SQL query
-    sql_query = """
-    SELECT * FROM publishers;
-    """
+# Execute SQL statements to create tables
+execute_sql_statements(engine, create_tables_sql.split(";"))
 
-    # Execute the query and fetch data into a DataFrame
-    publishers_df = pd.read_sql(sql_query, engine)
-
-    return publishers_df
+# Execute SQL statements to insert data
+execute_sql_statements(engine, insert_data_sql.split(";"))
 
 # Fetch and print the publishers data
-publishers_df = fetch_publishers_data(engine)
+publishers_df = fetch_data(engine, fetch_data_query)
 print(publishers_df)
+
+# Close the connection
+connection.close()
